@@ -144,6 +144,9 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
     $scope.autoRefresh = true;
     $scope.refreshText = 'Auto Update';
 
+    $scope.firstRefresh = true;
+    $scope.lastTimeStamp = Date.now();
+
     var search = $location.search();
     if (search.environment) {
       $scope.environment = search.environment;
@@ -237,6 +240,35 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
       Alert.query($scope.query, function(response) {
         if (response.status == 'ok') {
           $scope.alerts = response.alerts;
+          var last_ts = Date.parse(response.alerts[0].createTime)
+          if ($scope.firstRefresh) {
+            $scope.firstRefresh = false;
+            $scope.lastTimeStamp = last_ts;
+            console.log("Last: " + last_ts);
+          } else {
+            var now = Date.now()
+            for (var shit in response.alerts) {
+              var item = response.alerts[shit];
+              var ts = Date.parse(item.createTime)
+              if (ts > ($scope.lastTimeStamp - 0)) {
+                console.log("Compare " + ts + " vs " + $scope.lastTimeStamp)
+                console.log(item);
+                if (Notification.permission === "granted") {
+                  var noti = new Notification(item.resource, {
+                    dir: "auto",
+                    lang: "en-US",
+                    tag: now.toString(),
+                    body: item.text
+                  });
+                  var url = item.href;
+                  noti.onclick = function() {
+                    window.open(url)
+                  };
+                }
+              }
+            }
+            $scope.lastTimeStamp = Date.now();
+          }
         }
         $scope.message = response.status + ' - ' + response.message;
         $scope.autoRefresh = response.autoRefresh;
@@ -247,7 +279,7 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
         }
       });
     };
-    var refreshWithTimeout = function() {
+    var refreshWithTimeout = function () {
       if ($scope.autoRefresh) {
         refresh();
       }
@@ -255,7 +287,7 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
     };
     var timer = $timeout(refreshWithTimeout, 200);
 
-    $scope.$on('$destroy', function() {
+    $scope.$on('$destroy', function () {
       if (timer) {
         $timeout.cancel(timer);
       }
@@ -279,16 +311,16 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
 
     var severityCodes = angular.merge(severityCodeDefaults, config.severity);
 
-    $scope.reverseSeverityCode = function(alert) {
+    $scope.reverseSeverityCode = function (alert) {
       return -severityCodes[alert.severity];
     };
 
-    $scope.severityCode = function(alert) {
+    $scope.severityCode = function (alert) {
       return severityCodes[alert.severity];
     };
 
     $scope.audio = config.audio;
-    $scope.$watch('alerts', function(current, old) {
+    $scope.$watch('alerts', function (current, old) {
       if (current.length > old.length && $scope.status.value.indexOf('open') > -1) {
         $scope.play = true;
       } else {
@@ -298,7 +330,7 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
 
     $scope.bulkAlerts = [];
 
-    $scope.click = function($event,alert) {
+    $scope.click = function ($event, alert) {
       if ($event.metaKey || $event.altKey) {
         var index = $scope.bulkAlerts.indexOf(alert.id);
         if (index > -1) {
@@ -306,16 +338,16 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
         } else {
           $scope.bulkAlerts.push(alert.id);
         }
-      } else if(!$event.ctrlKey){
+      } else if (!$event.ctrlKey) {
         $location.url('/alert/' + alert.id);
-    } else if($event.ctrlKey) {
+      } else if ($event.ctrlKey) {
         window.open('/#/alert' + alert.id, '_blank');
       }
     };
 
-    $scope.bulkOpenAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'open', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkOpenAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'open', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
@@ -328,53 +360,53 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
     //   });
     // };
 
-    $scope.bulkWatchAlert = function(ids, user) {
-      angular.forEach(ids, function(id) {
-        Alert.tag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.bulkWatchAlert = function (ids, user) {
+      angular.forEach(ids, function (id) {
+        Alert.tag({ id: id }, { tags: ['watch:' + user] }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkUnwatchAlert = function(ids, user) {
-      angular.forEach(ids, function(id) {
-        Alert.untag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.bulkUnwatchAlert = function (ids, user) {
+      angular.forEach(ids, function (id) {
+        Alert.untag({ id: id }, { tags: ['watch:' + user] }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkAckAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'ack', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkAckAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'ack', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkCloseAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'closed', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkCloseAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'closed', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkDeleteAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.delete({id: id}, {}, function(data) {
+    $scope.bulkDeleteAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.delete({ id: id }, {}, function (data) {
           // $location.path('/');
         });
       });
       $route.reload();
     };
 
-    $scope.bulkOpenTabAlert = function(ids) {
-      angular.forEach(ids, function(id) {
+    $scope.bulkOpenTabAlert = function (ids) {
+      angular.forEach(ids, function (id) {
         window.open('/#/alert/' + id, '_blank');
       });
     };
@@ -384,26 +416,26 @@ alertaControllers.controller('AlertListController', ['$scope', '$route', '$locat
   }]);
 
 alertaControllers.controller('AlertDetailController', ['$scope', '$route', '$routeParams', '$location', '$auth', 'config', 'Alert',
-  function($scope, $route, $routeParams, $location, $auth, config, Alert){
+  function ($scope, $route, $routeParams, $location, $auth, config, Alert) {
 
     var byUser = '';
     if ($auth.isAuthenticated()) {
       $scope.user = $auth.getPayload().name;
       byUser = ' by ' + $scope.user;
-     } else {
-       $scope.user = undefined;
-     };
+    } else {
+      $scope.user = undefined;
+    };
 
-    $scope.isAuthenticated = function() {
+    $scope.isAuthenticated = function () {
       return $auth.isAuthenticated();
     };
 
-    Alert.get({id: $routeParams.id}, function(response) {
+    Alert.get({ id: $routeParams.id }, function (response) {
       $scope.alert = response.alert;
     });
 
-    $scope.unackAlert = function(id) {
-      Alert.action({id: id}, {action: 'unack', text: 'status change via console' + byUser}, function(data) {
+    $scope.unackAlert = function (id) {
+      Alert.action({ id: id }, { action: 'unack', text: 'status change via console' + byUser }, function (data) {
         $route.reload();
       });
     };
@@ -414,50 +446,50 @@ alertaControllers.controller('AlertDetailController', ['$scope', '$route', '$rou
     //   });
     // };
 
-    $scope.watchAlert = function(id, user) {
-      Alert.tag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.watchAlert = function (id, user) {
+      Alert.tag({ id: id }, { tags: ['watch:' + user] }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.unwatchAlert = function(id, user) {
-      Alert.untag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.unwatchAlert = function (id, user) {
+      Alert.untag({ id: id }, { tags: ['watch:' + user] }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.ackAlert = function(id) {
-      Alert.action({id: id}, {action: 'ack', text: 'status change via console' + byUser}, function(data) {
+    $scope.ackAlert = function (id) {
+      Alert.action({ id: id }, { action: 'ack', text: 'status change via console' + byUser }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.shelveAlert = function(id, user, timeout) {
-      Alert.action({id: id}, {action: 'shelve', text: 'status change via console' + byUser, timeout: timeout}, function(data) {
+    $scope.shelveAlert = function (id, user, timeout) {
+      Alert.action({ id: id }, { action: 'shelve', text: 'status change via console' + byUser, timeout: timeout }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.unshelveAlert = function(id, user) {
-      Alert.action({id: id}, {action: 'unshelve', text: 'status change via console' + byUser}, function(data) {
+    $scope.unshelveAlert = function (id, user) {
+      Alert.action({ id: id }, { action: 'unshelve', text: 'status change via console' + byUser }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.closeAlert = function(id) {
-      Alert.action({id: id}, {action: 'close', text: 'status change via console' + byUser}, function(data) {
+    $scope.closeAlert = function (id) {
+      Alert.action({ id: id }, { action: 'close', text: 'status change via console' + byUser }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.deleteAlert = function(id) {
-      Alert.delete({id: id}, {}, function(data) {
+    $scope.deleteAlert = function (id) {
+      Alert.delete({ id: id }, {}, function (data) {
         $location.path('/');
       });
     };
 
-    $scope.tagged = function(tags, tagged) {
-      angular.forEach(tags, function(tag) {
+    $scope.tagged = function (tags, tagged) {
+      angular.forEach(tags, function (tag) {
         if (tag == tagged) {
           return true;
         };
@@ -470,7 +502,7 @@ alertaControllers.controller('AlertDetailController', ['$scope', '$route', '$rou
   }]);
 
 alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$timeout', 'Count', 'Environment', 'Service', 'Alert', 'Top10',
-  function($scope, $location, $timeout, Count, Environment, Service, Alert, Top10){
+  function ($scope, $location, $timeout, Count, Environment, Service, Alert, Top10) {
 
     $scope.autoRefresh = true;
     $scope.refreshText = 'Auto Update';
@@ -484,9 +516,9 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
     }
 
     $scope.show = [
-      {name: 'Open', value: ['open', 'unknown']},
-      {name: 'Active', value: ['open', 'ack', 'assign']},
-      {name: 'Closed', value: ['closed', 'expired']}
+      { name: 'Open', value: ['open', 'unknown'] },
+      { name: 'Active', value: ['open', 'ack', 'assign'] },
+      { name: 'Closed', value: ['closed', 'expired'] }
     ];
     $scope.status = $scope.show[0];
 
@@ -495,7 +527,7 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
     $scope.standing = [];
     $scope.query = {};
 
-    $scope.setService = function(s) {
+    $scope.setService = function (s) {
       if (s) {
         $scope.environment = s.environment;
         $scope.service = s.service;
@@ -507,22 +539,22 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
       refresh();
     };
 
-    $scope.setEnv = function(environment) {
+    $scope.setEnv = function (environment) {
       $scope.environment = environment;
       updateQuery();
       refresh();
     };
 
-    $scope.update = function() {
+    $scope.update = function () {
       updateQuery();
       refresh();
     };
 
-    $scope.refresh = function() {
+    $scope.refresh = function () {
       refresh();
     };
 
-    var updateQuery = function() {
+    var updateQuery = function () {
       if ($scope.service) {
         $scope.query['service'] = $scope.service
       } else {
@@ -541,24 +573,24 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
       $location.search($scope.query);
     };
 
-    Service.all({status: $scope.status.value}, function(response) {
+    Service.all({ status: $scope.status.value }, function (response) {
       $scope.services = response.services;
     });
 
-    var refresh = function() {
+    var refresh = function () {
       $scope.refreshText = 'Refreshing...';
-      Count.query({status: $scope.status.value}, function(response) {
+      Count.query({ status: $scope.status.value }, function (response) {
         $scope.total = response.total;
         $scope.statusCounts = response.statusCounts;
       });
       // Service.all({status: $scope.status.value}, function(response) {
       //   $scope.services = response.services;
       // });
-      Environment.all({status: $scope.status.value}, function(response) {
+      Environment.all({ status: $scope.status.value }, function (response) {
         $scope.environments = response.environments;
       });
       updateQuery();
-      Top10.offenders($scope.query, function(response) {
+      Top10.offenders($scope.query, function (response) {
         if (response.status == 'ok') {
           $scope.offenders = response.top10;
         }
@@ -570,18 +602,18 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
           $scope.refreshText = 'Refresh';
         }
       });
-      Top10.flapping($scope.query, function(response) {
+      Top10.flapping($scope.query, function (response) {
         if (response.status == 'ok') {
           $scope.flapping = response.top10;
         }
       });
-      Top10.standing($scope.query, function(response) {
+      Top10.standing($scope.query, function (response) {
         if (response.status == 'ok') {
           $scope.standing = response.top10;
         }
       });
     };
-    var refreshWithTimeout = function() {
+    var refreshWithTimeout = function () {
       if ($scope.autoRefresh) {
         refresh();
       }
@@ -589,7 +621,7 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
     };
     var timer = $timeout(refresh, 200);
 
-    $scope.$on('$destroy', function() {
+    $scope.$on('$destroy', function () {
       if (timer) {
         $timeout.cancel(timer);
       }
@@ -597,18 +629,18 @@ alertaControllers.controller('AlertTop10Controller', ['$scope', '$location', '$t
 
   }]);
 
-alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$location', '$timeout', '$auth',  'config', 'Alert',
-  function($scope, $route, $location, $timeout, $auth,  config, Alert){
+alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$location', '$timeout', '$auth', 'config', 'Alert',
+  function ($scope, $route, $location, $timeout, $auth, config, Alert) {
 
     var byUser = '';
     if ($auth.isAuthenticated()) {
       $scope.user = $auth.getPayload().name;
       byUser = ' by ' + $scope.user;
-     } else {
-       $scope.user = undefined;
-     };
+    } else {
+      $scope.user = undefined;
+    };
 
-    $scope.isAuthenticated = function() {
+    $scope.isAuthenticated = function () {
       return $auth.isAuthenticated();
     };
 
@@ -635,8 +667,8 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
 
     $scope.watches = [];
 
-    var refresh = function() {
-      Alert.query({'tags': 'watch:' + $auth.getPayload().name}, function(response) {
+    var refresh = function () {
+      Alert.query({ 'tags': 'watch:' + $auth.getPayload().name }, function (response) {
         if (response.status == 'ok') {
           $scope.watches = response.alerts;
         }
@@ -646,7 +678,7 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
     };
     var timer = $timeout(refresh, 200);
 
-    $scope.$on('$destroy', function() {
+    $scope.$on('$destroy', function () {
       if (timer) {
         $timeout.cancel(timer);
       }
@@ -655,7 +687,7 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
 
     $scope.bulkAlerts = [];
 
-    $scope.click = function($event,alert) {
+    $scope.click = function ($event, alert) {
       if ($event.metaKey || $event.altKey) {
         var index = $scope.bulkAlerts.indexOf(alert.id);
         if (index > -1) {
@@ -668,9 +700,9 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
       }
     };
 
-    $scope.bulkOpenAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'open', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkOpenAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'open', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
@@ -683,53 +715,53 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
     //   });
     // };
 
-    $scope.bulkWatchAlert = function(ids, user) {
-      angular.forEach(ids, function(id) {
-        Alert.tag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.bulkWatchAlert = function (ids, user) {
+      angular.forEach(ids, function (id) {
+        Alert.tag({ id: id }, { tags: ['watch:' + user] }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkUnwatchAlert = function(ids, user) {
-      angular.forEach(ids, function(id) {
-        Alert.untag({id: id}, {tags: ['watch:' + user]}, function(data) {
+    $scope.bulkUnwatchAlert = function (ids, user) {
+      angular.forEach(ids, function (id) {
+        Alert.untag({ id: id }, { tags: ['watch:' + user] }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkAckAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'ack', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkAckAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'ack', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkCloseAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.status({id: id}, {status: 'closed', text: 'bulk status change via console' + byUser}, function(data) {
+    $scope.bulkCloseAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.status({ id: id }, { status: 'closed', text: 'bulk status change via console' + byUser }, function (data) {
           // $route.reload();
         });
       });
       $route.reload();
     };
 
-    $scope.bulkDeleteAlert = function(ids) {
-      angular.forEach(ids, function(id) {
-        Alert.delete({id: id}, {}, function(data) {
+    $scope.bulkDeleteAlert = function (ids) {
+      angular.forEach(ids, function (id) {
+        Alert.delete({ id: id }, {}, function (data) {
           // $location.path('/');
         });
       });
       $route.reload();
     };
 
-    $scope.bulkOpenTabAlert = function(ids) {
-      angular.forEach(ids, function(id) {
+    $scope.bulkOpenTabAlert = function (ids) {
+      angular.forEach(ids, function (id) {
         window.open('/#/alert/' + id, '_blank');
       });
     };
@@ -739,45 +771,45 @@ alertaControllers.controller('AlertWatchController', ['$scope', '$route', '$loca
   }]);
 
 alertaControllers.controller('AlertBlackoutController', ['$scope', '$route', '$timeout', '$auth', 'config', 'Blackouts', 'Environment', 'Service', 'Customers',
-  function($scope, $route, $timeout, $auth, config, Blackouts, Environment, Service, Customers) {
+  function ($scope, $route, $timeout, $auth, config, Blackouts, Environment, Service, Customers) {
 
     $scope.blackouts = [];
 
     var now = new Date();
-    now.setSeconds(0,0);
+    now.setSeconds(0, 0);
     $scope.start = now;
     $scope.end = new Date(now);
     $scope.end.setMinutes(now.getMinutes() + 60);
 
-    Service.all({}, function(response) {
+    Service.all({}, function (response) {
       $scope.services = response.services;
     });
-    Environment.all({}, function(response) {
+    Environment.all({}, function (response) {
       $scope.environments = response.environments;
     });
-    Customers.all({}, function(response) {
+    Customers.all({}, function (response) {
       $scope.customers = response.customers;
     });
 
-    $scope.createBlackout = function(environment,service,resource,event,group,tags,customer,start,end,text) {
+    $scope.createBlackout = function (environment, service, resource, event, group, tags, customer, start, end, text) {
       if (service) {
         service = service.split(",");
       }
       if (tags) {
         tags = tags.split(",");
       }
-      Blackouts.save({}, {environment: environment, service: service, resource: resource, event: event, group: group, tags: tags, customer: customer, startTime: start, endTime: end, text: text}, function(data) {
+      Blackouts.save({}, { environment: environment, service: service, resource: resource, event: event, group: group, tags: tags, customer: customer, startTime: start, endTime: end, text: text }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.deleteBlackout = function(id) {
-      Blackouts.delete({id: id}, {}, function(data) {
+    $scope.deleteBlackout = function (id) {
+      Blackouts.delete({ id: id }, {}, function (data) {
         $route.reload();
       });
     };
 
-    Blackouts.query({}, function(response) {
+    Blackouts.query({}, function (response) {
       $scope.blackouts = response.blackouts;
     });
 
@@ -786,36 +818,36 @@ alertaControllers.controller('AlertBlackoutController', ['$scope', '$route', '$t
 
 
 alertaControllers.controller('UserController', ['$scope', '$route', '$timeout', '$auth', 'config', 'Users', 'Perms',
-  function($scope, $route, $timeout, $auth, config, Users, Perms) {
+  function ($scope, $route, $timeout, $auth, config, Users, Perms) {
 
     $scope.domains = [];
     $scope.users = [];
     $scope.roles = [];
 
-    Users.query(function(response) {
+    Users.query(function (response) {
       $scope.domains = response.domains;
       $scope.users = response.users;
     });
 
-    Perms.all(function(response) {
+    Perms.all(function (response) {
       $scope.roles = response.permissions.map(p => p.match);
       $scope.roles.push('user');  // add default 'user' role as option
     });
 
-    $scope.updateRole = function(user, role) {
-      Users.update({user: user}, {role: role}, function(data) {
+    $scope.updateRole = function (user, role) {
+      Users.update({ user: user }, { role: role }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.setEmailVerified = function(user) {
-      Users.update({user: user}, {email_verified: true}, function(data) {
+    $scope.setEmailVerified = function (user) {
+      Users.update({ user: user }, { email_verified: true }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.deleteUser = function(user) {
-      Users.delete({user: user}, {}, function(data) {
+    $scope.deleteUser = function (user) {
+      Users.delete({ user: user }, {}, function (data) {
         $route.reload();
       });
     };
@@ -824,85 +856,85 @@ alertaControllers.controller('UserController', ['$scope', '$route', '$timeout', 
   }]);
 
 alertaControllers.controller('PermissionsController', ['$scope', '$route', '$timeout', '$auth', 'Perms',
-  function($scope, $route, $timeout, $auth, Perms) {
+  function ($scope, $route, $timeout, $auth, Perms) {
 
     $scope.perms = [];
     $scope.perm = '';
     $scope.match = '';
 
-    $scope.createPerm = function(scope, match) {
-      Perms.save({}, {scopes: scope.split(' '), match: match}, function(data) {
+    $scope.createPerm = function (scope, match) {
+      Perms.save({}, { scopes: scope.split(' '), match: match }, function (data) {
         $route.reload();
-      }, function(e) {
+      }, function (e) {
         $scope.status = e.data.status;
         $scope.message = e.data.message;
       });
     };
 
-    $scope.deletePerm = function(id) {
-      Perms.delete({id: id}, {}, function(response) {
+    $scope.deletePerm = function (id) {
+      Perms.delete({ id: id }, {}, function (response) {
         $route.reload();
       });
     };
 
-    Perms.all({}, function(response) {
+    Perms.all({}, function (response) {
       $scope.perms = response.permissions;
     });
 
   }]);
 
 alertaControllers.controller('CustomerController', ['$scope', '$route', '$timeout', '$auth', 'Customers',
-  function($scope, $route, $timeout, $auth, Customers) {
+  function ($scope, $route, $timeout, $auth, Customers) {
 
     $scope.customers = [];
     $scope.customer = '';
     $scope.match = '';
 
-    $scope.createCustomer = function(customer, match) {
-      Customers.save({}, {customer: customer, match: match}, function(data) {
+    $scope.createCustomer = function (customer, match) {
+      Customers.save({}, { customer: customer, match: match }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.deleteCustomer = function(id) {
-      Customers.delete({id: id}, {}, function(data) {
+    $scope.deleteCustomer = function (id) {
+      Customers.delete({ id: id }, {}, function (data) {
         $route.reload();
       });
     };
 
-    Customers.all({}, function(response) {
+    Customers.all({}, function (response) {
       $scope.customers = response.customers;
     });
 
   }]);
 
 alertaControllers.controller('ApiKeyController', ['$scope', '$route', '$timeout', '$auth', 'config', 'Keys',
-  function($scope, $route, $timeout, $auth, config, Keys) {
+  function ($scope, $route, $timeout, $auth, config, Keys) {
 
     $scope.keys = [];
-    $scope.type = {name: 'read-only', scopes: ['read']};
+    $scope.type = { name: 'read-only', scopes: ['read'] };
     $scope.text = '';
 
     $scope.types = [
-      {name: 'admin', scopes: ['read', 'write', 'admin']},
-      {name: 'read-write', scopes: ['read', 'write']},
-      {name: 'read-only', scopes: ['read']}
+      { name: 'admin', scopes: ['read', 'write', 'admin'] },
+      { name: 'read-write', scopes: ['read', 'write'] },
+      { name: 'read-only', scopes: ['read'] }
     ];
 
-    $scope.createKey = function(type, customer, text) {
+    $scope.createKey = function (type, customer, text) {
       var login = $auth.getPayload().preferred_username || $auth.getPayload().login;
-      Keys.save({}, {user: login, scopes: type.scopes, customer: customer, text: text}, function(data) {
+      Keys.save({}, { user: login, scopes: type.scopes, customer: customer, text: text }, function (data) {
         $route.reload();
       });
     };
 
-    $scope.deleteKey = function(key) {
-      Keys.delete({key: key}, {}, function(data) {
+    $scope.deleteKey = function (key) {
+      Keys.delete({ key: key }, {}, function (data) {
         $route.reload();
       });
     };
 
-    Keys.query({}, function(response) {
+    Keys.query({}, function (response) {
       $scope.keys = response.keys;
     });
 
@@ -910,7 +942,7 @@ alertaControllers.controller('ApiKeyController', ['$scope', '$route', '$timeout'
   }]);
 
 alertaControllers.controller('ProfileController', ['$scope', '$auth',
-  function($scope, $auth) {
+  function ($scope, $auth) {
 
     $scope.user_id = $auth.getPayload().sub;
     $scope.name = $auth.getPayload().name;
@@ -929,19 +961,19 @@ alertaControllers.controller('ProfileController', ['$scope', '$auth',
   }]);
 
 alertaControllers.controller('HeartbeatsController', ['$scope', '$timeout', 'config', 'Heartbeat',
-  function($scope, $timeout, config, Heartbeat) {
+  function ($scope, $timeout, config, Heartbeat) {
 
     $scope.heartbeats = [];
 
-    var refresh = function() {
-      Heartbeat.query(function(response) {
+    var refresh = function () {
+      Heartbeat.query(function (response) {
         $scope.heartbeats = response.heartbeats;
       });
       timer = $timeout(refresh, 10000);
     };
     var timer = $timeout(refresh, 200);
 
-    $scope.$on('$destroy', function() {
+    $scope.$on('$destroy', function () {
       if (timer) {
         $timeout.cancel(timer);
       }
@@ -949,27 +981,27 @@ alertaControllers.controller('HeartbeatsController', ['$scope', '$timeout', 'con
 
     $scope.longDate = config.dates && config.dates.longDate || 'd/M/yyyy h:mm:ss.sss a';
 
-    $scope.deleteHeartbeat = function(id) {
-      Heartbeat.delete({id: id}, {}, refresh);
+    $scope.deleteHeartbeat = function (id) {
+      Heartbeat.delete({ id: id }, {}, refresh);
     };
   }]);
 
 alertaControllers.controller('AboutController', ['$scope', '$timeout', 'config', 'Management',
-  function($scope, $timeout, config, Management) {
+  function ($scope, $timeout, config, Management) {
 
-    Management.manifest(function(response) {
+    Management.manifest(function (response) {
       $scope.label = response.alerta ? response.alerta.label : 'Alerta API';
-      $scope.release = response.alerta? response.alerta.release : response.release;
+      $scope.release = response.alerta ? response.alerta.release : response.release;
       $scope.build = response.alerta ? response.alerta.build : response.build;
       $scope.date = response.alerta ? response.alerta.date : response.date;
-      $scope.revision = response.alerta? response.alerta.revision : response.revision;
+      $scope.revision = response.alerta ? response.alerta.revision : response.revision;
     });
 
     $scope.metrics = [];
     $scope.heartbeats = [];
 
-    var refresh = function() {
-      Management.status(function(response) {
+    var refresh = function () {
+      Management.status(function (response) {
         $scope.metrics = response.metrics;
         $scope.lastTime = response.time;
         $scope.uptime = response.uptime;
@@ -978,7 +1010,7 @@ alertaControllers.controller('AboutController', ['$scope', '$timeout', 'config',
     };
     var timer = $timeout(refresh, 200);
 
-    $scope.$on('$destroy', function() {
+    $scope.$on('$destroy', function () {
       if (timer) {
         $timeout.cancel(timer);
       }
@@ -988,20 +1020,20 @@ alertaControllers.controller('AboutController', ['$scope', '$timeout', 'config',
   }]);
 
 alertaControllers.controller('LoginController', ['$scope', '$rootScope', '$location', '$auth', 'config',
- function($scope, $rootScope, $location, $auth, config) {
+  function ($scope, $rootScope, $location, $auth, config) {
 
     $scope.provider = config.provider;
 
-    $scope.login = function(email, password) {
+    $scope.login = function (email, password) {
       $auth.login({
         username: $scope.email,
         password: $scope.password
       })
-        .then(function() {
+        .then(function () {
           $rootScope.$broadcast('login:name', $auth.getPayload().name);
           $location.path('/');
         })
-        .catch(function(e) {
+        .catch(function (e) {
           console.log(e);
           if (e.status == 401) {
             $scope.error = "Login failed.";
@@ -1016,39 +1048,39 @@ alertaControllers.controller('LoginController', ['$scope', '$rootScope', '$locat
   }]);
 
 alertaControllers.controller('SignupController', ['$scope', '$rootScope', '$location', '$auth', 'config',
- function($scope, $rootScope, $location, $auth, config) {
+  function ($scope, $rootScope, $location, $auth, config) {
 
     $scope.provider = config.provider;
 
-    $scope.signup = function(name, email, password, text) {
+    $scope.signup = function (name, email, password, text) {
       $auth.signup({
         name: $scope.name,
         email: $scope.email,
         password: $scope.password,
         text: $scope.text
       })
-        .then(function(response) {
+        .then(function (response) {
           $auth.setToken(response);
           $rootScope.$broadcast('login:name', $scope.name);
           $location.path('/');
         })
-        .catch(function(e) {
+        .catch(function (e) {
           console.log(e);
           if (e.status != 200) {
             $scope.error = "Sign up failed.";
             $scope.message = e.data.message;
           };
         });
-      };
+    };
   }]);
 
-  alertaControllers.controller('LogoutController', ['$auth', '$location',
-    function($auth, $location) {
+alertaControllers.controller('LogoutController', ['$auth', '$location',
+  function ($auth, $location) {
     if (!$auth.isAuthenticated()) {
-        return;
+      return;
     }
     $auth.logout()
-      .then(function() {
+      .then(function () {
         console.log('You have been logged out');
         $location.path('/');
       });
